@@ -78,6 +78,52 @@ document.getElementById('modeworld').onclick=()=>{saveCurrent();competition=null
 // Garder le menu des modes visible lorsque le joueur consulte une compétition.
 const v12OldOpenSave=openSave;
 openSave=function(i){let target=saves[i];if(!target)return;saveCurrent();activeSave=i;mode=target.type;competition=(mode==='league'||mode==='world')?target.data:null;tournament=mode==='tournament'?target.data:null;fixture=null;started=false;over=false;score=[0,0];v9Apply(target.roster||{names:[target.team||teamNames[0],...teamNames.slice(1)]});if(target.pending&&competition){let m=allMatches().find(m=>m.a===target.pending.a&&m.b===target.pending.b&&m.sa===null);if(m){fixture=m;score=target.pending.score||[0,0];started=true;restoreTiming(target)}}showMainMenu()};
-// Les équipes par compétition se configurent dans l'éditeur V9, pas dans l'ancien formulaire.
+
+// V16 : éditeur accessible en haut du menu, identités propres à chaque sauvegarde.
+function v16Editor(){
+ document.getElementById('v9editor')?.remove();
+ document.getElementById('v16editor')?.remove();
+ const saved=activeSave>=0?saves[activeSave]:null;
+ const world=mode==='world'&&competition&&competition.type==='world';
+ const names=world?competition.names.slice():teamNames.slice();
+ const panel=document.createElement('details');panel.id='v16editor';panel.className='custom';
+ panel.style.cssText='max-width:100%;margin:8px auto;padding:10px;border:1px solid #69a7d0;background:#112536';
+ const summary=document.createElement('summary');summary.textContent='✏️ MODIFIER LES ÉQUIPES'+(saved?' — '+saved.label:' — NOMS PAR DÉFAUT');
+ summary.style.cssText='cursor:pointer;font-weight:bold;color:#fff;padding:7px';panel.appendChild(summary);
+ const hint=document.createElement('p');hint.textContent=world?'Modifie ton équipe et les 15 adversaires de cette Coupe du monde.':'Modifie ton équipe et les 7 adversaires. Les noms sont indépendants pour chaque sauvegarde.';panel.appendChild(hint);
+ const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px';
+ const inputs=[];
+ names.forEach((name,i)=>{const cell=document.createElement('label');cell.style.cssText='display:flex;flex-direction:column;gap:3px;text-align:left;font-size:12px';cell.textContent=name===playerTeamName?'⭐ MON ÉQUIPE':'Équipe '+(i+1);const inp=document.createElement('input');inp.value=name;inp.maxLength=22;inp.style.cssText='min-width:0;width:100%;padding:9px;background:#071927;color:white;border:1px solid #7894aa;border-radius:6px;font-size:15px';cell.appendChild(inp);grid.appendChild(cell);inputs.push(inp)});panel.appendChild(grid);
+ const options=document.createElement('div');options.style.cssText='display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:10px';
+ const color=document.createElement('input');color.type='color';color.value=/^#[0-9a-f]{6}$/i.test(teamColor)?teamColor:'#258df5';
+ const logo=document.createElement('select');logo.style.cssText='font-size:18px;padding:6px';['⚽','🦁','🐉','🦅','🔥','⚡','👑','🏆'].forEach(v=>{const opt=document.createElement('option');opt.value=v;opt.textContent=v;logo.appendChild(opt)});logo.value=teamLogo;
+ options.append('🎨 Maillot',color,'🛡️ Emblème',logo);panel.appendChild(options);
+ const save=document.createElement('button');save.textContent='💾 ENREGISTRER LES NOMS';
+ save.onclick=()=>{
+  const next=inputs.map((inp,i)=>inp.value.trim().replace(/\s+/g,' ').slice(0,22).toUpperCase()||'ÉQUIPE '+(i+1));
+  if(new Set(next).size!==next.length){alert('Chaque équipe doit avoir un nom différent.');return}
+  const map={};names.forEach((n,i)=>map[n]=next[i]);
+  if(tournament)v9Replace(tournament,map);
+  if(competition)v9Replace(competition,map);
+  if(fixture)v9Replace(fixture,map);
+  // Actualiser les 8 équipes de base, même si la Coupe du monde les a mélangées.
+  const base=teamNames.map(n=>Object.prototype.hasOwnProperty.call(map,n)?map[n]:n);
+  teamNames.splice(0,8,...base);playerTeamName=map[playerTeamName]||playerTeamName;
+  const playerIndex=teamNames.indexOf(playerTeamName);if(playerIndex>0){[teamNames[0],teamNames[playerIndex]]=[teamNames[playerIndex],teamNames[0]]}
+  opponentNames=teamNames.slice(1);teamColor=color.value;teamLogo=logo.value;
+  if(saved){saved.roster=v9Roster();saved.team=playerTeamName;saveCurrent();writeSaves()}
+  else{try{localStorage.setItem('babyfoot_team_name',playerTeamName);localStorage.setItem('babyfoot_opponents',JSON.stringify(opponentNames));localStorage.setItem('babyfoot_color',teamColor);localStorage.setItem('babyfoot_logo',teamLogo)}catch(e){}}
+  showMainMenu();
+ };
+ panel.appendChild(save);
+ const anchor=document.getElementById('durationSelect')?.parentElement;
+ if(anchor&&anchor.parentElement)anchor.insertAdjacentElement('afterend',panel);
+ else bracket.parentElement.insertBefore(panel,bracket);
+}
+const v16PreviousShowMenu=showMenu;
+showMenu=function(){v16PreviousShowMenu();v16Editor()};
+const v16PreviousCompetitionMenu=competitionMenu;
+competitionMenu=function(){v16PreviousCompetitionMenu();v16Editor()};
+
 showMainMenu();
 </script></body></html>
