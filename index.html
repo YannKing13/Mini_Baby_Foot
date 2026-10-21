@@ -430,12 +430,17 @@ v18CupMenu=function(){v22OldCupMenu();v22Layout()};
 // V23 — gardien autonome et coups spéciaux tactiles.
 let v23Keeper='auto',v23Energy=0,v23Special='canon',v23Armed=false,v23Shield=0,v23Notice='',v23NoticeTime=0;
 try{v23Keeper=localStorage.getItem('bf_v23_keeper')||'auto';v23Special=localStorage.getItem('bf_v23_special')||'canon'}catch(e){}
-const v23Hud=document.createElement('div');v23Hud.id='v23hud';v23Hud.style.cssText='position:fixed;bottom:3.5%;right:4%;z-index:2;display:none;gap:6px;align-items:center;pointer-events:none';
+const v23Hud=document.createElement('div');v23Hud.id='v23hud';v23Hud.style.cssText='position:fixed;bottom:3.5%;right:3%;z-index:6;display:none;gap:6px;align-items:center;pointer-events:auto;touch-action:manipulation';
 const v23Gauge=document.createElement('div');v23Gauge.style.cssText='font:bold 12px Arial;color:white;text-shadow:1px 1px 3px #000;background:#142737d9;padding:7px;border-radius:9px';
 const v23Fire=document.createElement('button');v23Fire.style.cssText='pointer-events:auto;background:#e09c23;color:#17202b;border:2px solid #ffe4a4;padding:10px;font:bold 13px Arial;min-width:115px';
-v23Hud.append(v23Gauge,v23Fire);document.body.append(v23Hud);
-function v23HudUpdate(){v23Hud.style.display=menu.style.display==='flex'||!started||over?'none':'flex';v23Gauge.textContent='⚡ '+Math.floor(v23Energy)+' / 100';v23Fire.textContent=v23Armed?'⚡ PRÊT !':v23Energy>=100?'⚡ '+({canon:'TIR CANON',curve:'TIR COURBÉ',shield:'MUR DÉFENSIF'}[v23Special]):'⚡ CHARGEMENT';v23Fire.disabled=v23Energy<100&&!v23Armed;v23Fire.style.opacity=v23Fire.disabled?'.65':'1'}
-v23Fire.onclick=()=>{if(v23Energy<100||v23Armed)return;v23Energy=0;if(v23Special==='shield'){v23Shield=7;v23Notice='🛡️ MUR DÉFENSIF !';v23NoticeTime=2;beep(420,.2,'triangle',.1)}else{v23Armed=true;v23Notice=v23Special==='canon'?'⚡ TIR CANON ARMÉ':'🌀 TIR COURBÉ ARMÉ';v23NoticeTime=2;beep(520,.16,'triangle',.1)}v23HudUpdate()};
+const v24Cycle=document.createElement('button');v24Cycle.type='button';v24Cycle.title='Changer de coup spécial';v24Cycle.style.cssText='pointer-events:auto;touch-action:manipulation;background:#245574;color:white;border:2px solid #7ac9e9;border-radius:10px;padding:10px 12px;font:bold 16px Arial;min-width:55px;min-height:49px';
+v23Fire.type='button';v23Fire.style.touchAction='manipulation';v23Fire.style.minHeight='49px';
+v23Hud.append(v23Gauge,v24Cycle,v23Fire);document.body.append(v23Hud);
+function v23HudUpdate(){v23Hud.style.display=menu.style.display==='flex'||!started||over?'none':'flex';v23Gauge.textContent='⚡ '+Math.floor(v23Energy)+' / 100';v24Cycle.textContent=({canon:'⚡↻',curve:'🌀↻',shield:'🛡️↻'})[v23Special];v23Fire.textContent=v23Armed?'⚡ PRÊT !':v23Energy>=100?'⚡ '+({canon:'TIR CANON',curve:'TIR COURBÉ',shield:'MUR DÉFENSIF'}[v23Special]):'⚡ CHARGEMENT';v23Fire.disabled=v23Energy<100&&!v23Armed;v23Fire.style.opacity=v23Fire.disabled?'.65':'1'}
+function v24Activate(){if(v23Energy<100||v23Armed)return;v23Energy=0;if(v23Special==='shield'){v23Shield=7;v23Notice='🛡️ MUR DÉFENSIF !';v23NoticeTime=2;beep(420,.2,'triangle',.1)}else{v23Armed=true;v23Notice=v23Special==='canon'?'⚡ TIR CANON ARMÉ':'🌀 TIR COURBÉ ARMÉ';v23NoticeTime=2;beep(520,.16,'triangle',.1)}v23HudUpdate()}
+function v24ChangeSpecial(){const types=['canon','curve','shield'];v23Special=types[(types.indexOf(v23Special)+1)%types.length];v23Armed=false;try{localStorage.setItem('bf_v23_special',v23Special)}catch(e){}v23Notice='COUP SPÉCIAL : '+({canon:'TIR CANON',curve:'TIR COURBÉ',shield:'MUR DÉFENSIF'})[v23Special];v23NoticeTime=1.5;v23HudUpdate()}
+function v24TouchAction(el,fn){let lastTouch=0;el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();lastTouch=Date.now();fn()},{passive:false});el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(Date.now()-lastTouch>550)fn()})}
+v24TouchAction(v23Fire,v24Activate);v24TouchAction(v24Cycle,v24ChangeSpecial);
 function v23KeeperAI(dt){const r=rods[0];if(v23Keeper==='manual'||Array.from(drags.values()).some(d=>d.rod===r))return;const toward=ball.vx<0;let aim=ball.y;if(toward){let travel=clamp((r.x-ball.x)/(ball.vx||-1),0,.65);aim=ball.y+ball.vy*travel*.75;let top=T.t+ball.r,bottom=T.b-ball.r;for(let k=0;k<3;k++){if(aim<top)aim=2*top-aim;if(aim>bottom)aim=2*bottom-aim}}let target=clamp(aim-270,-limit(r),limit(r));let old=r.y;let rate=v23Keeper==='assist'?3.1:5.8;r.y+=(target-r.y)*Math.min(1,dt*rate);r.v=(r.y-old)/Math.max(dt,.001);if(toward&&Math.abs(ball.x-r.x)<48&&Math.abs(ball.y-(270+r.y))<48&&r.cool<=0){r.kick=1;r.cool=.42}}
 const v23OldUpdate=update;update=function(dt){if(started&&!over&&menu.style.display!=='flex'){v23KeeperAI(Math.min(dt,.035));v23Energy=clamp(v23Energy+Math.min(dt,.05)*2.3,0,100);v23Shield=Math.max(0,v23Shield-dt);v23NoticeTime=Math.max(0,v23NoticeTime-dt)}v23OldUpdate(dt);v23HudUpdate()};
 const v23OldPower=v20Power;v20Power=function(r){let base=v23OldPower(r);if(r.team===1&&v23Shield>0)return base*.68;if(r.team===0&&v23Armed&&v23Special==='canon'){v23Armed=false;return base*1.8}return base};
@@ -450,5 +455,69 @@ const v23OldComp=competitionMenu;competitionMenu=function(){v23OldComp();v23Sett
 // Les réglages V23 sont rangés dans l'onglet Réglages du menu compact.
 const v23OldLayout=v22Layout;v22Layout=function(){v23OldLayout();const e=document.getElementById('v23settings');if(e)e.style.display=v22Tab==='settings'?'':'none'};
 showMainMenu();
+
+
+// V25 — cinématiques illustratives pour les trois coups spéciaux, et aperçu depuis Réglages.
+const v25Names={canon:'⚡ TIR CANON',curve:'🌀 TIR COURBÉ',shield:'🛡️ MUR DÉFENSIF'};
+const v25Descriptions={canon:'Frappe surpuissante : vitesse de tir augmentée.',curve:'Le ballon prend de l’effet et change de trajectoire.',shield:'Pendant 7 secondes, les tirs adverses perdent de la puissance.'};
+const v25Canvas=document.createElement('canvas');v25Canvas.id='v25cinema';
+v25Canvas.style.cssText='position:fixed;inset:0;width:100vw;height:100dvh;z-index:9;pointer-events:none;display:none';
+document.body.append(v25Canvas);
+const v25Ctx=v25Canvas.getContext('2d');let v25Scene=null;
+function v25Cinematic(type,preview=false){
+ if(!v25Names[type])return;
+ const now=performance.now();v25Scene={type,preview,start:now,duration:preview?2350:1600};
+ v25Canvas.width=Math.max(1,Math.round(innerWidth*devicePixelRatio));v25Canvas.height=Math.max(1,Math.round(innerHeight*devicePixelRatio));v25Canvas.style.display='block';
+ try{beep(type==='canon'?180:type==='curve'?440:300,.17,'triangle',.065)}catch(e){}
+}
+function v25DrawCinema(now){
+ if(!v25Scene)return;
+ const sc=v25Scene,t=Math.min(1,(now-sc.start)/sc.duration),ctx=v25Ctx,w=v25Canvas.width,h=v25Canvas.height,dpr=devicePixelRatio;
+ if(t>=1){v25Scene=null;v25Canvas.style.display='none';return}
+ ctx.clearRect(0,0,w,h);ctx.save();ctx.scale(dpr,dpr);
+ const cw=w/dpr,ch=h/dpr,cx=cw/2,cy=ch/2;
+ const opacity=Math.min(1,t*8,(1-t)*7);ctx.globalAlpha=Math.max(0,opacity);
+ ctx.fillStyle='rgba(4,14,28,.82)';ctx.fillRect(0,0,cw,ch);
+ const scale=Math.min(cw/900,ch/440);ctx.translate(cx,cy);ctx.scale(scale,scale);
+ ctx.fillStyle='#103a35';ctx.fillRect(-370,-120,740,245);ctx.strokeStyle='#8ee2c5';ctx.lineWidth=3;ctx.strokeRect(-370,-120,740,245);
+ ctx.beginPath();ctx.arc(0,0,55,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(0,-120);ctx.lineTo(0,125);ctx.stroke();
+ const ball=(x,y,r=14)=>{ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle='#fff8db';ctx.fill();ctx.strokeStyle='#222';ctx.lineWidth=2;ctx.stroke()};
+ if(sc.type==='canon'){
+  const x=-290+610*Math.pow(Math.min(t*1.7,1),1.4);
+  for(let i=5;i>0;i--){ctx.globalAlpha=opacity*(.3-i*.04);ctx.fillStyle=i%2?'#ffb72d':'#fff2a2';ctx.beginPath();ctx.ellipse(x-i*35,0,35,11,0,0,Math.PI*2);ctx.fill()}
+  ctx.globalAlpha=opacity;ball(x,0,17);ctx.strokeStyle='#ffdb55';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x-95,-25);ctx.lineTo(x-22,-9);ctx.moveTo(x-110,20);ctx.lineTo(x-25,8);ctx.stroke();
+ }else if(sc.type==='curve'){
+  const u=Math.min(t*1.6,1),x=-285+570*u,y=-95+190*Math.sin(u*Math.PI*1.25);
+  ctx.strokeStyle='#78d8ff';ctx.lineWidth=7;ctx.beginPath();for(let i=0;i<=35;i++){let v=u*i/35,xx=-285+570*v,yy=-95+190*Math.sin(v*Math.PI*1.25);if(!i)ctx.moveTo(xx,yy);else ctx.lineTo(xx,yy)}ctx.stroke();ball(x,y,17);
+  ctx.font='34px Arial';ctx.fillText('🌀',x-28,y-26);
+ }else{
+  const pulse=1+.07*Math.sin(t*20);ctx.save();ctx.scale(pulse,pulse);ctx.strokeStyle='#69dfff';ctx.lineWidth=10;ctx.shadowColor='#4fe5ff';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(-195,0,90,Math.PI*.62,Math.PI*2.38);ctx.stroke();ctx.shadowBlur=0;ctx.font='70px Arial';ctx.textAlign='center';ctx.fillText('🛡️',-195,22);ctx.restore();
+  const bx=250-430*Math.min(t*1.5,1);ball(Math.max(-85,bx),0,15);ctx.strokeStyle='#ffab72';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(Math.max(-85,bx)+22,0);ctx.lineTo(Math.max(-85,bx)+65,0);ctx.stroke();
+ }
+ ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=8;ctx.fillStyle='#fff';ctx.font='bold 34px Arial';ctx.fillText(v25Names[sc.type],0,-160);ctx.font='bold 17px Arial';ctx.fillStyle='#d8f5ff';ctx.fillText(v25Descriptions[sc.type],0,172);ctx.shadowBlur=0;
+ if(sc.preview){ctx.font='14px Arial';ctx.fillStyle='#ffdb8d';ctx.fillText('APERÇU — aucun effet sur le match',0,206)}
+ ctx.restore();
+}
+const v25OldDraw=draw;draw=function(){v25OldDraw();v25DrawCinema(performance.now())};
+const v25OldUpdate=update;update=function(dt){if(v25Scene&&!v25Scene.preview)return;v25OldUpdate(dt)};
+const v25OldActivate=v24Activate;v24Activate=function(){
+ const can=v23Energy>=100&&!v23Armed;
+ if(can)v25Cinematic(v23Special,false);
+ v25OldActivate();
+};
+// Les écouteurs des boutons avaient capturé l'ancienne fonction : réassocier sans double activation.
+v23Fire.addEventListener('pointerdown',()=>{if(v23Energy>=100&&!v23Armed)v25Cinematic(v23Special,false)},true);
+v23Fire.addEventListener('click',()=>{if(v23Energy>=100&&!v23Armed)v25Cinematic(v23Special,false)},true);
+function v25PreviewControls(){
+ const d=document.getElementById('v23settings');if(!d||d.querySelector('#v25previews'))return;
+ const box=document.createElement('div');box.id='v25previews';box.style.cssText='display:flex;justify-content:center;flex-wrap:wrap;gap:5px;margin:9px 0';
+ const title=document.createElement('p');title.textContent='🎬 Voir les cinématiques et les effets des coups spéciaux :';title.style.cssText='width:100%;margin:4px';box.append(title);
+ for(const type of ['canon','curve','shield']){const b=document.createElement('button');b.textContent='▶ '+v25Names[type];b.style.cssText='font-size:12px;padding:8px';b.onclick=()=>v25Cinematic(type,true);box.append(b)}
+ d.append(box);
+}
+const v25OldMain=showMainMenu;showMainMenu=function(){v25OldMain();v25PreviewControls()};
+const v25OldCup=v18CupMenu;v18CupMenu=function(){v25OldCup();v25PreviewControls()};
+const v25OldComp=competitionMenu;competitionMenu=function(){v25OldComp();v25PreviewControls()};
+v25PreviewControls();
 
 </script></body></html>
