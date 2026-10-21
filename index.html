@@ -426,6 +426,29 @@ const v22OldCompMenu=competitionMenu;
 competitionMenu=function(){v22OldCompMenu();v22Layout()};
 const v22OldCupMenu=v18CupMenu;
 v18CupMenu=function(){v22OldCupMenu();v22Layout()};
+
+// V23 — gardien autonome et coups spéciaux tactiles.
+let v23Keeper='auto',v23Energy=0,v23Special='canon',v23Armed=false,v23Shield=0,v23Notice='',v23NoticeTime=0;
+try{v23Keeper=localStorage.getItem('bf_v23_keeper')||'auto';v23Special=localStorage.getItem('bf_v23_special')||'canon'}catch(e){}
+const v23Hud=document.createElement('div');v23Hud.id='v23hud';v23Hud.style.cssText='position:fixed;bottom:3.5%;right:4%;z-index:2;display:none;gap:6px;align-items:center;pointer-events:none';
+const v23Gauge=document.createElement('div');v23Gauge.style.cssText='font:bold 12px Arial;color:white;text-shadow:1px 1px 3px #000;background:#142737d9;padding:7px;border-radius:9px';
+const v23Fire=document.createElement('button');v23Fire.style.cssText='pointer-events:auto;background:#e09c23;color:#17202b;border:2px solid #ffe4a4;padding:10px;font:bold 13px Arial;min-width:115px';
+v23Hud.append(v23Gauge,v23Fire);document.body.append(v23Hud);
+function v23HudUpdate(){v23Hud.style.display=menu.style.display==='flex'||!started||over?'none':'flex';v23Gauge.textContent='⚡ '+Math.floor(v23Energy)+' / 100';v23Fire.textContent=v23Armed?'⚡ PRÊT !':v23Energy>=100?'⚡ '+({canon:'TIR CANON',curve:'TIR COURBÉ',shield:'MUR DÉFENSIF'}[v23Special]):'⚡ CHARGEMENT';v23Fire.disabled=v23Energy<100&&!v23Armed;v23Fire.style.opacity=v23Fire.disabled?'.65':'1'}
+v23Fire.onclick=()=>{if(v23Energy<100||v23Armed)return;v23Energy=0;if(v23Special==='shield'){v23Shield=7;v23Notice='🛡️ MUR DÉFENSIF !';v23NoticeTime=2;beep(420,.2,'triangle',.1)}else{v23Armed=true;v23Notice=v23Special==='canon'?'⚡ TIR CANON ARMÉ':'🌀 TIR COURBÉ ARMÉ';v23NoticeTime=2;beep(520,.16,'triangle',.1)}v23HudUpdate()};
+function v23KeeperAI(dt){const r=rods[0];if(v23Keeper==='manual'||Array.from(drags.values()).some(d=>d.rod===r))return;const toward=ball.vx<0;let aim=ball.y;if(toward){let travel=clamp((r.x-ball.x)/(ball.vx||-1),0,.65);aim=ball.y+ball.vy*travel*.75;let top=T.t+ball.r,bottom=T.b-ball.r;for(let k=0;k<3;k++){if(aim<top)aim=2*top-aim;if(aim>bottom)aim=2*bottom-aim}}let target=clamp(aim-270,-limit(r),limit(r));let old=r.y;let rate=v23Keeper==='assist'?3.1:5.8;r.y+=(target-r.y)*Math.min(1,dt*rate);r.v=(r.y-old)/Math.max(dt,.001);if(toward&&Math.abs(ball.x-r.x)<48&&Math.abs(ball.y-(270+r.y))<48&&r.cool<=0){r.kick=1;r.cool=.42}}
+const v23OldUpdate=update;update=function(dt){if(started&&!over&&menu.style.display!=='flex'){v23KeeperAI(Math.min(dt,.035));v23Energy=clamp(v23Energy+Math.min(dt,.05)*2.3,0,100);v23Shield=Math.max(0,v23Shield-dt);v23NoticeTime=Math.max(0,v23NoticeTime-dt)}v23OldUpdate(dt);v23HudUpdate()};
+const v23OldPower=v20Power;v20Power=function(r){let base=v23OldPower(r);if(r.team===1&&v23Shield>0)return base*.68;if(r.team===0&&v23Armed&&v23Special==='canon'){v23Armed=false;return base*1.8}return base};
+const v23OldShot=v20Shot;v20Shot=function(r,power,angle){v23OldShot(r,power,angle);if(r.team===0){v23Energy=clamp(v23Energy+10,0,100);if(v23Armed&&v23Special==='curve'){v23Armed=false;ball.spin=clamp(ball.spin+(angle>=0?1:-1)*320,-480,480);ball.vy+=(angle>=0?1:-1)*160;v23Notice='🌀 TIR COURBÉ !';v23NoticeTime=1.4}else if(power>900){v23Notice='⚡ TIR CANON !';v23NoticeTime=1.4}}};
+const v23OldGoal=goal;goal=function(team){v23Energy=clamp(v23Energy+(team===0?22:12),0,100);v23OldGoal(team)};
+const v23OldBegin=beginTimedMatch;beginTimedMatch=function(...args){v23Energy=0;v23Armed=false;v23Shield=0;return v23OldBegin(...args)};
+const v23OldDraw=draw;draw=function(){v23OldDraw();if(v23NoticeTime>0){g.save();g.setTransform(S,0,0,S,ox,oy);g.fillStyle='#ffe08a';g.font='bold 21px Arial';g.textAlign='center';g.fillText(v23Notice,500,125);g.restore()}};
+function v23Settings(){document.getElementById('v23settings')?.remove();const panel=document.getElementById('tpanel');if(!panel)return;const d=document.createElement('details');d.id='v23settings';d.className='custom';d.style.cssText='max-width:900px;margin:7px auto';d.innerHTML='<summary style="font-weight:bold;cursor:pointer">🧤 V23 — GARDIEN ET COUPS SPÉCIAUX</summary><p>Gardien automatique conseillé. Les coups spéciaux utilisent une jauge qui se recharge pendant le match et sur les frappes.</p>';const row=document.createElement('div');row.style.cssText='display:flex;justify-content:center;flex-wrap:wrap;gap:8px;align-items:center';const a=document.createElement('select'),b=document.createElement('select');for(const [val,txt] of [['auto','Automatique'],['assist','Assisté'],['manual','Manuel']])a.add(new Option(txt,val));for(const [val,txt] of [['canon','⚡ Tir canon'],['curve','🌀 Tir courbé'],['shield','🛡️ Mur défensif']])b.add(new Option(txt,val));a.value=v23Keeper;b.value=v23Special;for(const sel of [a,b])sel.style.cssText='background:#0d2638;color:#fff;padding:8px;border-radius:7px;border:1px solid #648aaa';a.onchange=()=>{v23Keeper=a.value;localStorage.setItem('bf_v23_keeper',v23Keeper)};b.onchange=()=>{v23Special=b.value;v23Armed=false;localStorage.setItem('bf_v23_special',v23Special)};row.append('🧤 Gardien ',a,' ⚡ Coup spécial ',b);d.append(row);const anchor=document.getElementById('v20panel')||document.getElementById('v19formations');if(anchor)anchor.after(d);else panel.insertBefore(d,document.getElementById('tstatus'));if(typeof v22Layout==='function')v22Layout()}
+const v23OldMain=showMainMenu;showMainMenu=function(){v23OldMain();v23Settings()};
+const v23OldCup=v18CupMenu;v18CupMenu=function(){v23OldCup();v23Settings()};
+const v23OldComp=competitionMenu;competitionMenu=function(){v23OldComp();v23Settings()};
+// Les réglages V23 sont rangés dans l'onglet Réglages du menu compact.
+const v23OldLayout=v22Layout;v22Layout=function(){v23OldLayout();const e=document.getElementById('v23settings');if(e)e.style.display=v22Tab==='settings'?'':'none'};
 showMainMenu();
 
 </script></body></html>
