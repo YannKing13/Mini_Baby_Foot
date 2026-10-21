@@ -125,5 +125,61 @@ showMenu=function(){v16PreviousShowMenu();v16Editor()};
 const v16PreviousCompetitionMenu=competitionMenu;
 competitionMenu=function(){v16PreviousCompetitionMenu();v16Editor()};
 
+
+// V17 — tirage au sort manuel, réservé aux compétitions non commencées.
+function v17DrawAllowed(){
+ if(mode==='tournament'&&tournament)return tournament.round===0&&!tournament.finished&&tournament.rounds[0].every(m=>m.sa===null);
+ if(mode==='world'&&competition&&competition.type==='world')return competition.stage===0&&competition.day===0&&!competition.finished&&competition.groups.every(gr=>gr.rounds.every(day=>day.every(m=>m.sa===null)));
+ return false;
+}
+function v17DifferentShuffle(original){
+ let shuffled=original.slice();
+ for(let n=0;n<12;n++){shuffle(shuffled);if(shuffled.some((v,i)=>v!==original[i]))break}
+ return shuffled;
+}
+function v17Reroll(){
+ if(!v17DrawAllowed()){alert('Le tirage ne peut être modifié qu’avant le premier match.');return}
+ if(mode==='tournament'){
+  const entrants=v17DifferentShuffle(tournament.entrants);
+  tournament.entrants=entrants;
+  tournament.rounds=[[],[],[]];
+  for(let i=0;i<4;i++)tournament.rounds[0].push({a:entrants[2*i],b:entrants[2*i+1],sa:null,sb:null});
+  tournament.round=0;tournament.finished=false;
+ }else{
+  const q=competition;
+  const entrants=v17DifferentShuffle(q.groups.flatMap(gr=>gr.names));
+  q.names=entrants.slice();q.groups=[];
+  for(let i=0;i<4;i++){
+   const names=entrants.slice(i*4,i*4+4);
+   q.groups.push({names,rounds:fixturesRoundRobin(names)});
+  }
+  q.stage=0;q.day=0;q.knockout=[[],[],[]];q.finished=false;
+ }
+ fixture=null;started=false;over=false;score=[0,0];
+ saveCurrent();showMainMenu();
+}
+function v17DrawControl(){
+ document.getElementById('v17draw')?.remove();
+ if(mode!=='tournament'&&mode!=='world')return;
+ const box=document.createElement('div');box.id='v17draw';
+ box.style.cssText='text-align:center;margin:8px auto;padding:9px;border:1px solid #507b9c;border-radius:10px;background:#102536';
+ if(v17DrawAllowed()){
+  const btn=document.createElement('button');btn.textContent=mode==='world'?'🎲 EFFECTUER UN NOUVEAU TIRAGE DES 4 POULES':'🎲 EFFECTUER UN NOUVEAU TIRAGE DU TABLEAU';
+  btn.onclick=v17Reroll;
+  const p=document.createElement('p');p.textContent='Tirage aléatoire des équipes, avant le premier match. Tu peux recommencer autant de fois que tu veux.';
+  p.style.cssText='font-size:12px;margin:3px';box.append(btn,p);
+ }else{
+  box.textContent='🔒 Tirage verrouillé : la compétition a commencé.';
+  box.style.fontSize='12px';
+ }
+ const editor=document.getElementById('v16editor');
+ if(editor)editor.insertAdjacentElement('afterend',box);
+ else bracket.insertAdjacentElement('beforebegin',box);
+}
+const v17PreviousShowMenu=showMenu;
+showMenu=function(){v17PreviousShowMenu();v17DrawControl()};
+const v17PreviousCompetitionMenu=competitionMenu;
+competitionMenu=function(){v17PreviousCompetitionMenu();v17DrawControl()};
+
 showMainMenu();
 </script></body></html>
